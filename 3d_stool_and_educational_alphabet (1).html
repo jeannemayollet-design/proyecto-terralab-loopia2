@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor 3D - Mobiliario Didáctico HDPE Reciclado</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- GSAP for Smooth Animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        canvas {
+            outline: none;
+        }
+    </style>
+</head>
+<body class="relative w-screen h-screen">
+
+    <!-- 3D CANVAS CONTAINER -->
+    <div id="canvas-container" class="w-full h-full"></div>
+
+    <!-- UI OVERLAY -->
+    <!-- HEADER / BANNER -->
+    <div class="absolute top-6 left-6 z-10 max-w-sm pointer-events-none">
+        <div class="glass-panel p-5 rounded-2xl shadow-2xl pointer-events-auto">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">
+                    Eco-Didáctico HDPE
+                </span>
+            </div>
+            <h1 class="text-xl font-extrabold text-white tracking-tight">Mobiliario de Preescolar</h1>
+            <p class="text-xs text-slate-300 mt-1.5 leading-relaxed">
+                Plástico HDPE 100% reciclado con acabado estilo <span class="text-amber-300 font-bold">Terrazzo Confeti</span>. Diseño seguro con <span class="text-emerald-300 font-bold">esquinas y bordes redondeados</span>.
+            </p>
+            <p class="text-[11px] text-slate-400 mt-2 flex items-center gap-1.5">
+                <i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5 text-cyan-400"></i>
+                Haz clic en cualquier pieza para ver sus datos de reciclaje.
+            </p>
+        </div>
+    </div>
+
+    <!-- TARJETA DEL INSPECTOR (POPUP AL HACER CLIC) -->
+    <div id="inspector-card" class="absolute left-6 top-52 z-10 w-80 glass-panel p-5 rounded-2xl shadow-2xl hidden transition-all duration-300 border-l-4 border-l-cyan-400 pointer-events-auto">
+        <div class="flex items-start justify-between gap-2 border-b border-slate-700/60 pb-3 mb-3">
+            <div>
+                <span id="inspect-category" class="text-[10px] font-mono text-cyan-400 uppercase tracking-wider font-bold">Elemento 3D</span>
+                <h3 id="inspect-title" class="text-base font-extrabold text-white">Nombre del Objeto</h3>
+            </div>
+            <button id="close-inspector" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+        <p id="inspect-desc" class="text-xs text-slate-300 leading-relaxed mb-4">
+            Descripción técnica.
+        </p>
+        <div class="space-y-2 text-[11px] bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                <span class="text-slate-400">Peso del producto:</span>
+                <span id="inspect-weight" class="font-extrabold text-emerald-400">3 kg</span>
+            </div>
+            <div class="flex justify-between items-center border-b border-slate-800 pb-1.5">
+                <span class="text-slate-400">Plástico necesario:</span>
+                <span id="inspect-plastic" class="font-extrabold text-cyan-400">3.3 kg HDPE</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-slate-400">Equivalente en tapitas:</span>
+                <span id="inspect-caps" class="font-extrabold text-amber-400">~900 tapitas</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTONES DE NAVEGACIÓN Y ACCIONES (BOTTOM CENTER) -->
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex flex-wrap justify-center items-center gap-3 w-full px-4 max-w-2xl pointer-events-none">
+        <div class="glass-panel p-2 rounded-2xl shadow-2xl flex items-center gap-2 pointer-events-auto">
+            <button id="btn-view-all" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-slate-800 transition flex items-center gap-1.5">
+                <i data-lucide="eye" class="w-4 h-4 text-slate-400"></i>
+                Vista General
+            </button>
+            <button id="btn-view-stool" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-slate-800 transition flex items-center gap-1.5">
+                <i data-lucide="armchair" class="w-4 h-4 text-blue-400"></i>
+                Banquito
+            </button>
+            <button id="btn-view-puzzle" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-slate-800 transition flex items-center gap-1.5">
+                <i data-lucide="shapes" class="w-4 h-4 text-emerald-400"></i>
+                Juego Encaje
+            </button>
+            <button id="btn-view-alphabet" class="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-200 hover:bg-slate-800 transition flex items-center gap-1.5">
+                <i data-lucide="type" class="w-4 h-4 text-purple-400"></i>
+                Abecedario
+            </button>
+            <div class="w-px h-6 bg-slate-700 mx-1"></div>
+            <button id="btn-animate-fit" class="px-4 py-2 rounded-xl text-xs font-extrabold bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 hover:from-emerald-400 hover:to-teal-400 transition shadow-lg shadow-emerald-500/20 flex items-center gap-1.5">
+                <i data-lucide="move-up-down" class="w-4 h-4"></i>
+                <span id="anim-btn-text">Elevar Fichas</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- SCRIPT PRINCIPAL THREE.JS -->
+    <script>
+        lucide.createIcons();
+
+        // Scene Setup
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a);
+
+        // Camera
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 6, 9);
+
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // OrbitControls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.02;
+        controls.minDistance = 3;
+        controls.maxDistance = 16;
+        controls.target.set(0, 0.5, 0);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        dirLight.position.set(8, 12, 8);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.bias = -0.0001;
+        scene.add(dirLight);
+
+        const fillLight = new THREE.DirectionalLight(0x38bdf8, 0.4);
+        fillLight.position.set(-8, 6, -8);
+        scene.add(fillLight);
+
+        // Ground Plane (Piso de la escena)
+        const groundGeo = new THREE.PlaneGeometry(30, 30);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.85, metalness: 0.1 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Generador de Textura Procedural HDPE Confeti/Terrazzo
+        function createTerrazzoTexture(baseColorHex) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = baseColorHex;
+            ctx.fillRect(0, 0, 512, 512);
+
+            const confettiColors = ['#ffffff', '#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+            for (let i = 0; i < 500; i++) {
+                ctx.fillStyle = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+                ctx.beginPath();
+                const x = Math.random() * 512;
+                const y = Math.random() * 512;
+                const r = Math.random() * 4.5 + 1.5;
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            return texture;
+        }
+
+        // Función para crear materiales de plástico HDPE reciclado
+        function getPlasticMaterial(colorHex) {
+            const hexStr = '#' + new THREE.Color(colorHex).getHexString();
+            return new THREE.MeshStandardMaterial({
+                map: createTerrazzoTexture(hexStr),
+                roughness: 0.25,
+                metalness: 0.05
+            });
+        }
+
+        // Raycasting y Objetos Interactivos
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const interactiveObjects = [];
+
+        // Función auxiliar para esquinas redondeadas en planos 2D extrusionados
+        function createRoundedRectGeometry(width, height, depth, radius) {
+            const shape = new THREE.Shape();
+            const w = width / 2;
+            const h = height / 2;
+            const r = Math.min(radius, w, h);
+
+            shape.moveTo(-w + r, -h);
+            shape.lineTo(w - r, -h);
+            shape.quadraticCurveTo(w, -h, w, -h + r);
+            shape.lineTo(w, h - r);
+            shape.quadraticCurveTo(w, h, w - r, h);
+            shape.lineTo(-w + r, h);
+            shape.quadraticCurveTo(-w, h, -w, h - r);
+            shape.lineTo(-w, -h + r);
+            shape.quadraticCurveTo(-w, -h, -w + r, -h);
+
+            return new THREE.ExtrudeGeometry(shape, {
+                depth: depth,
+                bevelEnabled: true,
+                bevelThickness: 0.02,
+                bevelSize: 0.02,
+                bevelSegments: 4
+            });
+        }
+
+        // --- 1. BANQUITO DE PREESCOLAR (Azul y Amarillo - PATAS SÚPER GRUESAS Y BORDES REDONDEADOS) ---
+        const stoolGroup = new THREE.Group();
+        stoolGroup.position.set(3.2, 0, 0);
+        scene.add(stoolGroup);
+
+        // Asiento con bordes suavizados child-safe
+        const seatGeo = createRoundedRectGeometry(1.25, 0.95, 0.12, 0.18);
+        const seatMat = getPlasticMaterial(0x2563eb); // Azul
+        const seat = new THREE.Mesh(seatGeo, seatMat);
+        seat.rotation.x = Math.PI / 2;
+        seat.position.y = 0.9;
+        seat.castShadow = true;
+        seat.receiveShadow = true;
+        stoolGroup.add(seat);
+
+        // Patas gruesas y robustas con bases redondeadas
+        const legMat = getPlasticMaterial(0xfacc15); // Amarillo
+        const legPositions = [[-0.42, -0.32], [0.42, -0.32], [-0.42, 0.32], [0.42, 0.32]];
+
+        legPositions.forEach(([lx, lz]) => {
+            // Patas muy gruesas y cilíndricas de seguridad
+            const legGeo = new THREE.CylinderGeometry(0.14, 0.12, 0.9, 32);
+            const leg = new THREE.Mesh(legGeo, legMat);
+            leg.position.set(lx, 0.45, lz);
+            leg.rotation.z = -lx * 0.12;
+            leg.rotation.x = lz * 0.12;
+            leg.castShadow = true;
+            stoolGroup.add(leg);
+        });
+
+        seat.userData = {
+            name: "Banquito Preescolar Azul/Amarillo",
+            category: "Mobiliario Infantil HDPE",
+            desc: "Banquito ergonómico de plástico HDPE 100% triturado con esquinas suaves child-safe y patas súper gruesas para estabilidad.",
+            weight: "3 kg",
+            reqPlastic: "3.3 kg de plástico HDPE",
+            caps: "~900 tapitas de plástico"
+        };
+        interactiveObjects.push(seat);
+
+
+        // --- 2. TABLERO DE ENCAJE CON SILUETAS Y FICHAS DE BORDES SUAVES ---
+        const puzzleGroup = new THREE.Group();
+        puzzleGroup.position.set(-0.2, 0, 0.3);
+        scene.add(puzzleGroup);
+
+        const fitShapes = [];
+
+        function createGeometricBoard() {
+            const boardWidth = 1.6;
+            const boardHeight = 1.6;
+            const boardThickness = 0.12;
+
+            const posX_left = -0.4;
+            const posX_right = 0.4;
+            const posY_top = 0.4;
+            const posY_bottom = -0.4;
+
+            const boardShape = new THREE.Shape();
+            const w = boardWidth / 2 - 0.1;
+            const h = boardHeight / 2 - 0.1;
+            
+            boardShape.moveTo(-w, -boardHeight / 2);
+            boardShape.lineTo(w, -boardHeight / 2);
+            boardShape.quadraticCurveTo(boardWidth / 2, -boardHeight / 2, boardWidth / 2, -h);
+            boardShape.lineTo(boardWidth / 2, h);
+            boardShape.quadraticCurveTo(boardWidth / 2, boardHeight / 2, w, boardHeight / 2);
+            boardShape.lineTo(-w, boardHeight / 2);
+            boardShape.quadraticCurveTo(-boardWidth / 2, boardHeight / 2, -boardWidth / 2, h);
+            boardShape.lineTo(-boardWidth / 2, -h);
+            boardShape.quadraticCurveTo(-boardWidth / 2, -boardHeight / 2, -w, -boardHeight / 2);
+
+            // 1. Arriba-Izquierda: HUECO TRIÁNGULO
+            const holeTri = new THREE.Path();
+            holeTri.moveTo(posX_left, posY_top + 0.22);
+            holeTri.lineTo(posX_left - 0.23, posY_top - 0.20);
+            holeTri.lineTo(posX_left + 0.23, posY_top - 0.20);
+            holeTri.closePath();
+            boardShape.holes.push(holeTri);
+
+            // 2. Arriba-Derecha: HUECO CÍRCULO
+            const holeCirc = new THREE.Path();
+            holeCirc.absarc(posX_right, posY_top, 0.22, 0, Math.PI * 2, true);
+            boardShape.holes.push(holeCirc);
+
+            // 3. Abajo-Izquierda: HUECO CUADRADO
+            const holeSq = new THREE.Path();
+            const sqS = 0.21;
+            holeSq.moveTo(posX_left - sqS, posY_bottom + sqS);
+            holeSq.lineTo(posX_left + sqS, posY_bottom + sqS);
+            holeSq.lineTo(posX_left + sqS, posY_bottom - sqS);
+            holeSq.lineTo(posX_left - sqS, posY_bottom - sqS);
+            holeSq.closePath();
+            boardShape.holes.push(holeSq);
+
+            // 4. Abajo-Derecha: HUECO RECTÁNGULO
+            const holeRect = new THREE.Path();
+            const rW = 0.25;
+            const rH = 0.17;
+            holeRect.moveTo(posX_right - rW, posY_bottom + rH);
+            holeRect.lineTo(posX_right + rW, posY_bottom + rH);
+            holeRect.lineTo(posX_right + rW, posY_bottom - rH);
+            holeRect.lineTo(posX_right - rW, posY_bottom - rH);
+            holeRect.closePath();
+            boardShape.holes.push(holeRect);
+
+            // Extrusión con bordes biselados/redondeados para el tablero
+            const boardGeo = new THREE.ExtrudeGeometry(boardShape, {
+                depth: boardThickness,
+                bevelEnabled: true,
+                bevelThickness: 0.02,
+                bevelSize: 0.02,
+                bevelSegments: 4
+            });
+            boardGeo.center();
+
+            const boardMesh = new THREE.Mesh(boardGeo, getPlasticMaterial(0x475569));
+            boardMesh.rotation.x = Math.PI / 2;
+            boardMesh.position.set(0, 0.06, 0);
+            boardMesh.castShadow = true;
+            boardMesh.receiveShadow = true;
+
+            boardMesh.userData = {
+                name: "Tablero de Encaje Geométrico",
+                category: "Juego Didáctico HDPE",
+                desc: "Tablero de encaje con 4 orificios troquelados exactos y bordes suavizados para seguridad infantil.",
+                weight: "500 g (Tablero)",
+                reqPlastic: "800 g de plástico HDPE (Set Completo)",
+                caps: "~240 tapitas de plástico (Set)"
+            };
+
+            puzzleGroup.add(boardMesh);
+            interactiveObjects.push(boardMesh);
+
+            // --- FICHAS CON BORDES REDONDEADOS ---
+            // Ficha Triángulo
+            const triShape = new THREE.Shape();
+            triShape.moveTo(0, 0.215);
+            triShape.lineTo(-0.225, -0.195);
+            triShape.lineTo(0.225, -0.195);
+            triShape.closePath();
+            const triGeo = new THREE.ExtrudeGeometry(triShape, { depth: 0.115, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 3 });
+            triGeo.center();
+            const triMesh = new THREE.Mesh(triGeo, getPlasticMaterial(0xef4444));
+            triMesh.rotation.x = Math.PI / 2;
+            triMesh.position.set(posX_left, 0.06, -posY_top + 0.01);
+            triMesh.castShadow = true;
+            puzzleGroup.add(triMesh);
+            fitShapes.push({ mesh: triMesh, homeY: 0.06, name: "Ficha Triángulo" });
+
+            // Ficha Círculo
+            const circGeo = new THREE.CylinderGeometry(0.215, 0.215, 0.115, 32);
+            const circMesh = new THREE.Mesh(circGeo, getPlasticMaterial(0x10b981));
+            circMesh.position.set(posX_right, 0.06, -posY_top);
+            circMesh.castShadow = true;
+            puzzleGroup.add(circMesh);
+            fitShapes.push({ mesh: circMesh, homeY: 0.06, name: "Ficha Círculo" });
+
+            // Ficha Cuadrado con bordes suaves
+            const sqGeo = createRoundedRectGeometry(0.41, 0.41, 0.115, 0.04);
+            const sqMesh = new THREE.Mesh(sqGeo, getPlasticMaterial(0xfacc15));
+            sqMesh.rotation.x = Math.PI / 2;
+            sqMesh.position.set(posX_left, 0.06, -posY_bottom);
+            sqMesh.castShadow = true;
+            puzzleGroup.add(sqMesh);
+            fitShapes.push({ mesh: sqMesh, homeY: 0.06, name: "Ficha Cuadrado" });
+
+            // Ficha Rectángulo con bordes suaves
+            const rectGeo = createRoundedRectGeometry(0.49, 0.33, 0.115, 0.04);
+            const rectMesh = new THREE.Mesh(rectGeo, getPlasticMaterial(0xf97316));
+            rectMesh.rotation.x = Math.PI / 2;
+            rectMesh.position.set(posX_right, 0.06, -posY_bottom);
+            rectMesh.castShadow = true;
+            puzzleGroup.add(rectMesh);
+            fitShapes.push({ mesh: rectMesh, homeY: 0.06, name: "Ficha Rectángulo" });
+        }
+
+        createGeometricBoard();
+
+        fitShapes.forEach((s) => {
+            s.mesh.userData = {
+                name: s.name,
+                category: "Ficha Encajable (1 de 4)",
+                desc: "Ficha geométrica con esquinas redondeadas. Cada ficha pesa 50 g (200 g total las 4 fichas) y calza perfectamente en su molde.",
+                weight: "50 g (200 g las 4 fichas)",
+                reqPlastic: "800 g de plástico HDPE (Set Completo)",
+                caps: "~15 tapitas por ficha"
+            };
+            interactiveObjects.push(s.mesh);
+        });
+
+
+        // --- 3. ABECEDARIO Y NÚMEROS 3D (ESQUINAS REDONDEADAS Y BORDES BISELADOS) ---
+        const alphabetGroup = new THREE.Group();
+        alphabetGroup.position.set(-3.8, 0, 0.2);
+        scene.add(alphabetGroup);
+
+        const fontLoader = new THREE.FontLoader();
+        fontLoader.load('https://threejs.org/examples/fonts/helvetiker_bold.typeface.json', (font) => {
+            
+            function createVolumetricChar(textStr, colorHex, x, z, scale = 1.0, rotY = 0) {
+                const textGeo = new THREE.TextGeometry(textStr, {
+                    font: font,
+                    size: 0.5 * scale,
+                    height: 0.18,
+                    curveSegments: 12,
+                    bevelEnabled: true,
+                    bevelThickness: 0.03,
+                    bevelSize: 0.025,
+                    bevelSegments: 5
+                });
+                textGeo.center();
+
+                const charMesh = new THREE.Mesh(textGeo, getPlasticMaterial(colorHex));
+                charMesh.rotation.x = -Math.PI / 2;
+                charMesh.rotation.z = rotY;
+                charMesh.position.set(x, 0.1, z);
+                charMesh.castShadow = true;
+                charMesh.receiveShadow = true;
+
+                charMesh.userData = {
+                    name: `Pieza "${textStr}"`,
+                    category: "Abecedario / Número 3D",
+                    desc: `Ficha independiente 3D con bordes biselados y esquinas suaves de la letra/número "${textStr}".`,
+                    weight: "20 g",
+                    reqPlastic: "23 g de plástico HDPE",
+                    caps: "9 tapitas de plástico"
+                };
+
+                alphabetGroup.add(charMesh);
+                interactiveObjects.push(charMesh);
+            }
+
+            // Mayúsculas
+            createVolumetricChar('A', 0xef4444, -0.9, -0.8, 1.0, -0.1);
+            createVolumetricChar('B', 0x3b82f6, 0.0, -0.8, 1.0, 0.15);
+            createVolumetricChar('C', 0x10b981, 0.9, -0.8, 1.0, -0.05);
+
+            // Minúsculas
+            createVolumetricChar('a', 0xf97316, -0.9, -0.05, 0.85, 0.1);
+            createVolumetricChar('b', 0x8b5cf6, 0.0, -0.05, 0.85, -0.12);
+            createVolumetricChar('c', 0xfacc15, 0.9, -0.05, 0.85, 0.08);
+
+            // Números
+            createVolumetricChar('1', 0xec4899, -0.9, 0.7, 1.0, -0.08);
+            createVolumetricChar('2', 0x06b6d4, 0.0, 0.7, 1.0, 0.05);
+            createVolumetricChar('3', 0x84cc16, 0.9, 0.7, 1.0, -0.15);
+        });
+
+
+        // --- INTERACTIVIDAD Y ANIMACIONES ---
+        const inspectorCard = document.getElementById('inspector-card');
+        document.getElementById('close-inspector').addEventListener('click', () => {
+            inspectorCard.classList.add('hidden');
+        });
+
+        // Detector de clics en objetos
+        window.addEventListener('click', (e) => {
+            if (e.target.closest('.glass-panel') || e.target.closest('button')) return;
+
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(interactiveObjects, true);
+
+            if (intersects.length > 0) {
+                let obj = intersects[0].object;
+                while (obj && (!obj.userData || !obj.userData.name) && obj.parent) {
+                    obj = obj.parent;
+                }
+                if (obj && obj.userData && obj.userData.name) {
+                    document.getElementById('inspect-category').textContent = obj.userData.category;
+                    document.getElementById('inspect-title').textContent = obj.userData.name;
+                    document.getElementById('inspect-desc').textContent = obj.userData.desc;
+                    document.getElementById('inspect-weight').textContent = obj.userData.weight;
+                    document.getElementById('inspect-plastic').textContent = obj.userData.reqPlastic;
+                    document.getElementById('inspect-caps').textContent = obj.userData.caps;
+
+                    inspectorCard.classList.remove('hidden');
+
+                    const worldPos = new THREE.Vector3();
+                    obj.getWorldPosition(worldPos);
+
+                    gsap.to(controls.target, { x: worldPos.x, y: worldPos.y, z: worldPos.z, duration: 0.8 });
+                    gsap.to(camera.position, { x: worldPos.x + 1.2, y: worldPos.y + 1.5, z: worldPos.z + 1.8, duration: 1 });
+                }
+            }
+        });
+
+        // Animación de Elevación / Encaje de Fichas
+        let isElevated = false;
+        const animBtnText = document.getElementById('anim-btn-text');
+
+        document.getElementById('btn-animate-fit').addEventListener('click', () => {
+            isElevated = !isElevated;
+            animBtnText.textContent = isElevated ? "Encajar Fichas" : "Elevar Fichas";
+
+            fitShapes.forEach((s, idx) => {
+                const targetY = isElevated ? s.homeY + 0.6 : s.homeY;
+                gsap.to(s.mesh.position, {
+                    y: targetY,
+                    duration: 0.8,
+                    delay: idx * 0.08,
+                    ease: isElevated ? "back.out(1.7)" : "bounce.out"
+                });
+            });
+        });
+
+        // Control de Cámaras
+        function focusCamera(targetX, targetY, targetZ, camX, camY, camZ) {
+            gsap.to(controls.target, { x: targetX, y: targetY, z: targetZ, duration: 1.2 });
+            gsap.to(camera.position, { x: camX, y: camY, z: camZ, duration: 1.2 });
+        }
+
+        document.getElementById('btn-view-all').addEventListener('click', () => focusCamera(0, 0.5, 0, 0, 6, 9));
+        document.getElementById('btn-view-stool').addEventListener('click', () => focusCamera(3.2, 0.5, 0, 3.2, 3, 4));
+        document.getElementById('btn-view-puzzle').addEventListener('click', () => focusCamera(-0.2, 0.2, 0.3, -0.2, 2.5, 2.5));
+        document.getElementById('btn-view-alphabet').addEventListener('click', () => focusCamera(-3.8, 0.2, 0.2, -3.8, 3, 3.5));
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Window Resize Listener
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
